@@ -174,8 +174,72 @@ app.put('/cart/:product_id', (req, res) => {
         });
     });
 });
+app.put('/cart/:qnty', (req, res) => {
+    const Que = parseInt(req.params.qnty);
+
+    mongodb.connect(conString).then((object) => {
+        const database = object.db('decent');
+        const cartCollection = database.collection('cart');
+
+        cartCollection.updateOne(
+            { que: Que },
+            { $inc: { qnty: 1 } } // Increase quantity by 1
+        ).then((document) => {
+            if (document.matchedCount > 0) {
+                res.send('Quantity increased by 1.');
+            } else {
+                res.status(404).send('Item not found.');
+            }
+            res.end();
+        }).catch((error) => {
+            res.status(500).send('Database error.');
+            res.end();
+        });
+    }).catch((error) => {
+        res.status(500).send('Connection error.');
+        res.end();
+    });
+});
+
+
+app.delete('/cart/:qnty', (req, res) => {
+    const Qnt = parseInt(req.params.qnty);
+
+    mongodb.connect(conString).then((object) => {
+        const database = object.db('decent');
+        const cartCollection = database.collection('cart');
+
+        cartCollection.findOne({ que: Qnt }).then((item) => {
+            if (item) {
+                if (item.qnty > 1) {
+                    // Reduce quantity by 1
+                    cartCollection.updateOne(
+                        { que: Qnt },
+                        { $inc: { qnty: -1 } }
+                    ).then(() => {
+                        res.send('Quantity reduced by 1.');
+                        res.end();
+                    });
+                } else {
+                    // Remove item if quantity reaches 0
+                    cartCollection.deleteOne({ que: Qnt }).then(() => {
+                        res.send('Item removed as quantity reached 0.');
+                        res.end();
+                    });
+                }
+            } else {
+                res.status(404).send('Item not found.');
+                res.end();
+            }
+        });
+    }).catch((error) => {
+        res.status(500).send('Database error.');
+        res.end();
+    });
+});
 
 // ------------------------------------- Cart Product Delete ----------------------
+
 app.delete('/cart/:product_id', (req, res) => {
     const ProductID = parseInt(req.params.product_id);
     mongodb.connect(conString).then((object) => {
